@@ -1,27 +1,34 @@
 package com.gopi.airbnb.entitys;
 
-import jakarta.persistence.Entity;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.Date;
-
 @Entity
-@Data
-@AllArgsConstructor
-@RequiredArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class Inventory {
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    private Long hotelId;
-    private Long roomId;
     private Date date;
     private Integer bookedCount;
     private Integer totalCount ;
-    private Date CreatedAt;
-    private Date updatedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private Double surgeFactor;
     private Boolean closed;
+
+    @ManyToOne
+    @JoinColumn(name = "room_id")
+    private Room room;
+
+    @ManyToOne
+    @JoinColumn(name = "hotel_id")
+    private Hotel hotel;
+
 
 
 

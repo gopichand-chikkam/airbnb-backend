@@ -1,28 +1,47 @@
 package com.gopi.airbnb.entitys;
 
-import com.gopi.airbnb.enums.PaymentStatus;
-import jakarta.persistence.Entity;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import com.gopi.airbnb.enums.BookingStatus;
+import jakarta.persistence.*;
+import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 
 @Entity
-@Data
-@AllArgsConstructor
-@RequiredArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class Booking {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    private Long hotelId;
-    private Long roomId;
-    private Long userId;
     private Date CreatedAt;
     private Date updatedAt;
-    private PaymentStatus bookingStatus;
-    private Date checkInDate;
-    private Date checkOutDate;
-    private Long paymentId;
+    @Enumerated(EnumType.STRING)
+    private BookingStatus bookingStatus;
+    private LocalDateTime checkInDate;
+    private LocalDateTime checkOutDate;
+
+    @ManyToOne
+    @JoinColumn(name = "hotel_id")
+    private Hotel hotel;
+
+    @OneToMany(mappedBy = "booking")
+    private List<BookingGuest> bookingGuestList;
+
+    @ManyToOne
+    @JoinColumn(name = "room_id")
+    private Room room;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @OneToOne
+    @JoinColumn(name = "payment_id")
+    private Payment payment;
 
 
 }

@@ -1,16 +1,20 @@
 package com.gopi.airbnb.entitys;
 
-import jakarta.persistence.Entity;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+import jakarta.persistence.*;
+import lombok.*;
 
 @Entity
-@Data
-@AllArgsConstructor
-@RequiredArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
 public class BookingGuest {
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    private Long bookingId;
-    private Long guestId;
+    @ManyToOne
+    @JoinColumn(name = "booking_id")
+    private Booking booking;
+    @ManyToOne
+    @JoinColumn(name = "guest_id")
+    private Guest guest;
 }
