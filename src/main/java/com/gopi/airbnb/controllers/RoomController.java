@@ -3,12 +3,12 @@ package com.gopi.airbnb.controllers;
 import com.gopi.airbnb.Services.RoomService;
 import com.gopi.airbnb.dto.requests.RoomAddRequest;
 import com.gopi.airbnb.dto.response.RoomAddResponse;
+import com.gopi.airbnb.dto.response.RoomFetchResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("api/v1/admin/hotel/room")
@@ -21,6 +21,18 @@ public class RoomController {
         ResponseEntity<RoomAddResponse> addRoom(@RequestBody RoomAddRequest request){
              RoomAddResponse roomAddResponse= roomService.addRoom(request);
              return ResponseEntity.ok(roomAddResponse);
+        }
+
+        @GetMapping("/getRoomsByHotel/{hotel_id}")
+       ResponseEntity<List<RoomFetchResponse>> fetchRoomList(@PathVariable Long hotel_id){
+            List<RoomFetchResponse> roomFetchResponse= roomService.findByHotelId(hotel_id);
+            return ResponseEntity.ok(roomFetchResponse);
+        }
+
+        @GetMapping("/getRooms/{room_id}")
+        ResponseEntity<RoomFetchResponse> fetchRoom(@PathVariable Long room_id){
+            RoomFetchResponse roomFetchResponse = roomService.getByRoomId(room_id);
+            return ResponseEntity.ok(roomFetchResponse);
         }
 
 

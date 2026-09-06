@@ -5,6 +5,7 @@ import com.gopi.airbnb.Services.InventoryService;
 import com.gopi.airbnb.Services.RoomService;
 import com.gopi.airbnb.dto.requests.RoomAddRequest;
 import com.gopi.airbnb.dto.response.RoomAddResponse;
+import com.gopi.airbnb.dto.response.RoomFetchResponse;
 import com.gopi.airbnb.entitys.Hotel;
 import com.gopi.airbnb.entitys.Inventory;
 import com.gopi.airbnb.entitys.Room;
@@ -44,5 +45,36 @@ public class RoomServiceImpl implements RoomService {
     @Override
     public Room findByRoomId(Long roomId) {
         return roomRepo.findById(roomId).orElseThrow(() -> new ResourceNotFoundException("Room not found with id" + roomId));
+    }
+
+    @Override
+    public List<RoomFetchResponse> findByHotelId(Long hotelId) {
+        List<Room> roomsData = roomRepo.findByHotelId(hotelId);
+        List<RoomFetchResponse> roomFetchResponseList = new ArrayList<>();
+        for (Room room : roomsData) {
+            RoomFetchResponse roomFetchResponse = new RoomFetchResponse(hotelId,
+                    room.getId(),
+                    room.getType(),
+                    room.getBasePrice(),
+                    room.getPhotos(),
+                    room.getAmenities(),
+                    room.getTotalCount(),
+                    room.getCapacity());
+            roomFetchResponseList.add(roomFetchResponse);
+        }
+        return roomFetchResponseList;
+    }
+
+    @Override
+    public RoomFetchResponse getByRoomId(Long roomId) {
+        Room room = roomRepo.findById(roomId).orElseThrow(() -> new ResourceNotFoundException("Room not found with id" + roomId));
+        return new RoomFetchResponse(room.getHotel().getId(),
+                room.getId(),
+                room.getType(),
+                room.getBasePrice(),
+                room.getPhotos(),
+                room.getAmenities(),
+                room.getTotalCount(),
+                room.getCapacity());
     }
 }

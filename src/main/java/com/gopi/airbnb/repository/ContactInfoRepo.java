@@ -7,4 +7,6 @@ public interface ContactInfoRepo extends JpaRepository<ContactInfo,Long> {
     boolean existsByEmail(String email);
 
     boolean existsByPhoneNumber(String phoneNumber);
+
+
 }
