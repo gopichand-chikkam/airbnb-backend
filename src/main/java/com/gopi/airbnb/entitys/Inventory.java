@@ -3,6 +3,7 @@ package com.gopi.airbnb.entitys;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 @Entity
@@ -13,11 +14,11 @@ public class Inventory {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    private Date date;
+    private LocalDate date;
     private Integer bookedCount;
     private Integer totalCount ;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDate createdAt;
+    private LocalDate updatedAt;
     private Double surgeFactor;
     private Boolean closed;
 
@@ -25,9 +26,9 @@ public class Inventory {
     @JoinColumn(name = "room_id")
     private Room room;
 
-    @ManyToOne
-    @JoinColumn(name = "hotel_id")
-    private Hotel hotel;
+//    @ManyToOne
+//    @JoinColumn(name = "hotel_id")
+//    private Hotel hotel;
 
 
 

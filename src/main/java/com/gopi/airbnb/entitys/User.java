@@ -18,6 +18,8 @@ public class User {
     @ElementCollection
     private List<Role>roles;
     private String name;
+
+    @Column(nullable = false,unique = true)
     private String email;
     private String password;
 

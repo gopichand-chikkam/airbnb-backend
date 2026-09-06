@@ -1,9 +1,6 @@
 package com.gopi.airbnb.entitys;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
@@ -16,7 +13,10 @@ public class ContactInfo {
     private Long id;
     private String completeAddress;
     private String location;
+
+    @Column(nullable = false,unique = true)
     private String email;
+    @Column(nullable = false,unique = true)
     private String phoneNumber;
 
 }
