@@ -3,6 +3,7 @@ package com.gopi.airbnb.Services.implimentation;
 import com.gopi.airbnb.Services.InventoryService;
 import com.gopi.airbnb.Services.RoomService;
 import com.gopi.airbnb.dto.requests.InventoryAddRequest;
+import com.gopi.airbnb.dto.requests.InventoryUpdateRequest;
 import com.gopi.airbnb.dto.response.InventoryAddResponse;
 import com.gopi.airbnb.dto.response.InventoryFetchResponse;
 import com.gopi.airbnb.entitys.Inventory;
@@ -38,11 +39,12 @@ public class InventoryServiceImpl implements InventoryService {
         return new InventoryAddResponse(savedInventory.getId(), "Your Room Inventory  has added successfully with roomId" + request.roomId());
     }
 
+
     @Override
     public Double calculateSurgeFactor(Integer totalCount, Integer bookedCount) {
         if (totalCount == 0) return 1.0;
 
-        Double occupancy = (double) (bookedCount / totalCount);
+        Double occupancy = ((double) bookedCount / (double) totalCount);
         Double maxSurgeValue = 0.5;
         return 1.0 + (occupancy * maxSurgeValue);
     }
@@ -79,6 +81,54 @@ public class InventoryServiceImpl implements InventoryService {
                 inventory.getBookedCount(),
                 inventory.getTotalCount());
     }
+
+    @Override
+    public InventoryAddResponse deleteInventoryById(Long inventoryId) {
+        inventoryRepo.deleteById(inventoryId);
+        return new InventoryAddResponse(inventoryId, "Inventory has deleted successfully with id " + inventoryId);
+    }
+
+    @Override
+    public InventoryAddResponse updateInventory(InventoryUpdateRequest inventoryUpdateRequest) {
+
+        Inventory savedInventory = inventoryRepo.findById(inventoryUpdateRequest.inventory_id()).orElseThrow(
+                () -> new ResourceNotFoundException("Inventory not found with id" + inventoryUpdateRequest.inventory_id())
+        );
+
+        savedInventory.setDate(LocalDate.parse(inventoryUpdateRequest.date()));
+        savedInventory.setBookedCount(inventoryUpdateRequest.bookedCount());
+        savedInventory.setTotalCount(inventoryUpdateRequest.totalCount());
+        savedInventory.setCreatedAt(savedInventory.getCreatedAt());
+        savedInventory.setUpdatedAt(LocalDate.now());
+        savedInventory.setSurgeFactor(calculateSurgeFactor(inventoryUpdateRequest.totalCount(), inventoryUpdateRequest.bookedCount()));
+        savedInventory.setClosed(isBookingAvailable(inventoryUpdateRequest.totalCount(), inventoryUpdateRequest.bookedCount()));
+        savedInventory.setRoom(savedInventory.getRoom());
+        Inventory updatedInventory = inventoryRepo.save(savedInventory);
+        return new InventoryAddResponse(updatedInventory.getId(), "Your Room Inventory  has updated successfully with inventory" + updatedInventory.getId());
+    }
+
+    @Override
+    public InventoryAddResponse updateInventoryField(InventoryUpdateRequest inventoryUpdateRequest) {
+        Inventory savedInventory = inventoryRepo.findById(inventoryUpdateRequest.inventory_id()).orElseThrow(
+                () -> new ResourceNotFoundException("Inventory not found with id" + inventoryUpdateRequest.inventory_id()));
+        if (inventoryUpdateRequest.date() != null) {
+            savedInventory.setDate(LocalDate.parse(inventoryUpdateRequest.date()));
+        }
+        if (inventoryUpdateRequest.totalCount() != null) {
+            savedInventory.setTotalCount(inventoryUpdateRequest.totalCount());
+        }
+        if (inventoryUpdateRequest.bookedCount() != null) {
+            savedInventory.setBookedCount(inventoryUpdateRequest.bookedCount());
+        }
+
+        savedInventory.setSurgeFactor(calculateSurgeFactor(savedInventory.getTotalCount(), savedInventory.getBookedCount()));
+        Inventory updatedInventory = inventoryRepo.save(savedInventory);
+        return new InventoryAddResponse(updatedInventory.getId(), "Your Room Inventory  has updated successfully with inventory" + updatedInventory.getId());
+
+    }
+
+
+
 
 
 }

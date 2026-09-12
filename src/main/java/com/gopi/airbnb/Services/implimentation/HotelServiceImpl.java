@@ -2,6 +2,7 @@ package com.gopi.airbnb.Services.implimentation;
 
 import com.gopi.airbnb.Services.ContactInfoService;
 import com.gopi.airbnb.Services.HotelService;
+import com.gopi.airbnb.Services.RoomService;
 import com.gopi.airbnb.dto.requests.HotelCreationRequest;
 import com.gopi.airbnb.dto.requests.HotelUpdateRequest;
 import com.gopi.airbnb.dto.response.HotelCreationResponse;
@@ -13,6 +14,7 @@ import com.gopi.airbnb.exceptions.ResourceNotFoundException;
 import com.gopi.airbnb.repository.HotelRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -21,6 +23,7 @@ import java.time.LocalDateTime;
 public class HotelServiceImpl implements HotelService {
     private final ContactInfoService contactInfoService;
     private final HotelRepo hotelRepo;
+  //  private final RoomService roomService;
 
 
     @Override
@@ -120,9 +123,12 @@ public class HotelServiceImpl implements HotelService {
 
     }
 
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public HotelCreationResponse deleteHotel(Long hotelId) {
-        if(!hotelRepo.existsById(hotelId))throw  new ResourceNotFoundException("Hotel is Not registered");
+      //  roomService.deleteByHotelId(hotelId);
+        Hotel hotel= hotelRepo.findById(hotelId).orElseThrow(()->  new ResourceNotFoundException("Hotel is Not registered"));
+        contactInfoService.deleteById(hotel.getContact_info().getId());
         hotelRepo.deleteById(hotelId);
         return new HotelCreationResponse(hotelId,"Hotel is Deleted Successfully");
     }

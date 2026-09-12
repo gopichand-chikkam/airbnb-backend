@@ -1,6 +1,7 @@
 package com.gopi.airbnb.Services;
 
 import com.gopi.airbnb.dto.requests.RoomAddRequest;
+import com.gopi.airbnb.dto.requests.RoomUpdateRequest;
 import com.gopi.airbnb.dto.response.RoomAddResponse;
 import com.gopi.airbnb.dto.response.RoomFetchResponse;
 import com.gopi.airbnb.entitys.Room;
@@ -16,4 +17,11 @@ public interface RoomService {
     List<RoomFetchResponse> findByHotelId(Long hotelId);
 
     RoomFetchResponse getByRoomId(Long roomId);
+
+
+    RoomAddResponse deleteRoomById(Long roomId);
+
+    RoomAddResponse updateRoom(RoomUpdateRequest roomUpdateRequest);
+
+    RoomAddResponse updateRoomField(RoomUpdateRequest roomUpdateRequest);
 }

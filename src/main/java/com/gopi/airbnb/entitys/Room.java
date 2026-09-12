@@ -30,7 +30,7 @@ public class Room {
     @ManyToOne
     @JoinColumn(name = "hotel_id")
     private Hotel hotel;
-    @OneToMany(mappedBy = "room")
+    @OneToMany(mappedBy = "room",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<Inventory> roomInventory;
     @OneToMany(mappedBy = "room")
     private List<Booking>bookings;

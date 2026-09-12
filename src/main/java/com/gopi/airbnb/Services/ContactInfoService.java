@@ -13,4 +13,6 @@ public interface ContactInfoService {
     ContactInfo updateContactInfo(Long id, ContactInfo contactInfoRequest);
 
     ContactInfo updateContactInfoField(Long id, ContactInfo contactInfo);
+
+    void deleteById(Long id);
 }

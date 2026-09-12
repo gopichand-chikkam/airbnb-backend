@@ -59,4 +59,10 @@ public class ContactInfoServiceImpl implements ContactInfoService {
         return contactInfoRepo.save(savedcontactInfo);
     }
 
+    @Override
+    public void deleteById(Long id) {
+        contactInfoRepo.deleteById(id);
+    }
+
+
 }

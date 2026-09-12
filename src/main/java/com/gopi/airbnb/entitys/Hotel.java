@@ -28,7 +28,7 @@ public class Hotel {
     @OneToOne
     @JoinColumn(name = "contact_info_id")
     private ContactInfo contact_info;
-    @OneToMany(mappedBy = "hotel")
+    @OneToMany(mappedBy = "hotel",cascade = CascadeType.ALL,orphanRemoval = true)
     private List<Room> rooms;
 //    @OneToMany(mappedBy = "hotel")
 //    private List<Inventory> inventoryList;
