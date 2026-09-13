@@ -8,13 +8,14 @@ import com.gopi.airbnb.dto.requests.RoomUpdateRequest;
 import com.gopi.airbnb.dto.response.RoomAddResponse;
 import com.gopi.airbnb.dto.response.RoomFetchResponse;
 import com.gopi.airbnb.entitys.Hotel;
-import com.gopi.airbnb.entitys.Inventory;
 import com.gopi.airbnb.entitys.Room;
 import com.gopi.airbnb.exceptions.ResourceNotFoundException;
 import com.gopi.airbnb.repository.RoomRepo;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ public class RoomServiceImpl implements RoomService {
     private final RoomRepo roomRepo;
     private final HotelService hotelService;
     private final InventoryService inventoryService;
-
+    private final Integer bookingOpeningDaysCount=30;
 
     @Override
     public RoomAddResponse addRoom(RoomAddRequest request) {
@@ -42,7 +43,7 @@ public class RoomServiceImpl implements RoomService {
         room.setTotalCount(request.totalCount());
         room.setPhotos(request.photos());
         Room savedRoom = roomRepo.save(room);
-
+        inventoryService.addInventoryByRoom(bookingOpeningDaysCount,savedRoom);
         return new RoomAddResponse(savedRoom.getId(), "Room is successfully added in Hotel" + hotel.getName());
     }
 
@@ -69,9 +70,11 @@ public class RoomServiceImpl implements RoomService {
         return roomFetchResponseList;
     }
 
+
     @Override
     public RoomFetchResponse getByRoomId(Long roomId) {
         Room room = roomRepo.findById(roomId).orElseThrow(() -> new ResourceNotFoundException("Room not found with id" + roomId));
+
         return new RoomFetchResponse(room.getHotel().getId(),
                 room.getId(),
                 room.getType(),
@@ -91,7 +94,6 @@ public class RoomServiceImpl implements RoomService {
     @Override
     public RoomAddResponse updateRoom(RoomUpdateRequest roomUpdateRequest) {
         Room savedRoom = roomRepo.findById(roomUpdateRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room not found with id" + roomUpdateRequest.room_id()));
-
         savedRoom.setType(roomUpdateRequest.type());
         savedRoom.setHotel(savedRoom.getHotel());
         savedRoom.setAmenities(roomUpdateRequest.amenities());
@@ -133,5 +135,14 @@ public class RoomServiceImpl implements RoomService {
         }
         Room updatecRoom = roomRepo.save(savedRoom);
         return new RoomAddResponse(savedRoom.getId(), "Room is successfully updated " + updatecRoom.getId());
+    }
+
+    @Override
+    public void updateLatestDateOfRoomInventory(){
+        List<Room>allRooms= roomRepo.findAll();
+        for (Room room : allRooms) {
+            inventoryService.addLatestDateToRoomInventory(room, bookingOpeningDaysCount);
+        }
+
     }
 }

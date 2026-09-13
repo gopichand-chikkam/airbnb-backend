@@ -5,6 +5,7 @@ import com.gopi.airbnb.dto.requests.InventoryUpdateRequest;
 import com.gopi.airbnb.dto.response.InventoryAddResponse;
 import com.gopi.airbnb.dto.response.InventoryFetchResponse;
 import com.gopi.airbnb.entitys.Inventory;
+import com.gopi.airbnb.entitys.Room;
 
 import java.util.List;
 
@@ -23,4 +24,8 @@ public interface InventoryService {
     InventoryAddResponse updateInventory(InventoryUpdateRequest inventoryUpdateRequest);
 
     InventoryAddResponse updateInventoryField(InventoryUpdateRequest inventoryUpdateRequest);
+
+    void addInventoryByRoom(Integer bookingOpeningDaysCount, Room savedRoom);
+
+    void addLatestDateToRoomInventory(Room room,Integer bookingOpeningDaysCount);
 }

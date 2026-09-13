@@ -10,22 +10,24 @@ import com.gopi.airbnb.entitys.Inventory;
 import com.gopi.airbnb.entitys.Room;
 import com.gopi.airbnb.exceptions.ResourceNotFoundException;
 import com.gopi.airbnb.repository.InventoryRepo;
+import com.gopi.airbnb.repository.RoomRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class InventoryServiceImpl implements InventoryService {
     private final InventoryRepo inventoryRepo;
-    private final RoomService roomService;
+    private final RoomRepo roomRepo;
 
     @Override
     public InventoryAddResponse addInventory(InventoryAddRequest request) {
-        Room room = roomService.findByRoomId(request.roomId());
+        Room room = roomRepo.findById(request.roomId()).orElseThrow(() -> new ResourceNotFoundException("Room not found with id" + request.roomId()));
         Inventory inventory = new Inventory();
         inventory.setDate(LocalDate.parse(request.date()));
         inventory.setBookedCount(request.bookedCount());
@@ -127,8 +129,58 @@ public class InventoryServiceImpl implements InventoryService {
 
     }
 
+    @Override
+    public void addInventoryByRoom(Integer bookingOpeningDaysCount, Room savedRoom) {
 
+        for(int i=0;i<bookingOpeningDaysCount;i++) {
+            Inventory inventory = new Inventory();
+            inventory.setDate(getDate(i));
+            inventory.setBookedCount(0);
+            inventory.setTotalCount(savedRoom.getTotalCount());
+            inventory.setCreatedAt(LocalDate.now());
+            inventory.setUpdatedAt(LocalDate.now());
+            inventory.setSurgeFactor(calculateSurgeFactor(savedRoom.getTotalCount(), 0));
+            inventory.setClosed(isBookingAvailable(savedRoom.getTotalCount(), 0));
+            inventory.setRoom(savedRoom);
+            Inventory savedInventory = inventoryRepo.save(inventory);
+        }
+    }
 
+    @Override
+    public void addLatestDateToRoomInventory(Room room,Integer bookingOpeningDaysCount) {
+     List<Inventory>roomInventoryDataList=   inventoryRepo.findByRoomIdAndDateGreaterThanEqualOrderByDateAsc(room.getId(),LocalDate.now());
+     for(int i=0;i<roomInventoryDataList.size();i++){
+         System.out.println(roomInventoryDataList.get(i).getDate());
+     }
+    //    System.out.println("5678908765567890");
+     HashMap<LocalDate,Integer> datesDate= new HashMap<>();
+           if(roomInventoryDataList.size()!= bookingOpeningDaysCount+1){
+               for(int i=0;i<roomInventoryDataList.size();i++){
+                   datesDate.put(roomInventoryDataList.get(i).getDate(),1);
+               }
+               for(int i=0;i<bookingOpeningDaysCount;i++){
+                   LocalDate date= LocalDate.now().plusDays(i);
+                   if(!datesDate.containsKey(date)){
+                       Inventory inventory = new Inventory();
+                       inventory.setDate(date);
+                       inventory.setBookedCount(0);
+                       inventory.setTotalCount(room.getTotalCount());
+                       inventory.setCreatedAt(LocalDate.now());
+                       inventory.setUpdatedAt(LocalDate.now());
+                       inventory.setSurgeFactor(calculateSurgeFactor(room.getTotalCount(), 0));
+                       inventory.setClosed(isBookingAvailable(room.getTotalCount(), 0));
+                       inventory.setRoom(room);
+                       Inventory savedInventory = inventoryRepo.save(inventory);
+                       datesDate.put(date,1);
+                   }
+               }
+           }
+    }
 
+//
+
+    public LocalDate getDate(int distanceFromPresentDate) {
+        return LocalDate.now().plusDays(distanceFromPresentDate);
+    }
 
 }

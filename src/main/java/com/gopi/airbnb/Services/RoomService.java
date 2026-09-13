@@ -24,4 +24,5 @@ public interface RoomService {
     RoomAddResponse updateRoom(RoomUpdateRequest roomUpdateRequest);
 
     RoomAddResponse updateRoomField(RoomUpdateRequest roomUpdateRequest);
+    void updateLatestDateOfRoomInventory();
 }
