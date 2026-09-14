@@ -2,6 +2,7 @@ package com.gopi.airbnb.controllers;
 
 import com.gopi.airbnb.Services.HotelService;
 import com.gopi.airbnb.dto.requests.HotelCreationRequest;
+import com.gopi.airbnb.dto.requests.HotelSearchRequest;
 import com.gopi.airbnb.dto.requests.HotelUpdateRequest;
 import com.gopi.airbnb.dto.response.HotelCreationResponse;
 import com.gopi.airbnb.dto.response.HotelGetResponse;
@@ -9,6 +10,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -48,6 +51,12 @@ public class HotelController {
     ResponseEntity<HotelCreationResponse>delete(@PathVariable Long hotel_id){
          HotelCreationResponse hotelCreationResponse= hotelService.deleteHotel(hotel_id);
          return ResponseEntity.ok(hotelCreationResponse);
+    }
+
+    @GetMapping("/hotelSearch")
+    ResponseEntity<List<HotelGetResponse>>getHotelSearch(@RequestBody HotelSearchRequest hotelSearchRequest){
+        List<HotelGetResponse> hotelList= hotelService.hotelSearch(hotelSearchRequest);
+        return ResponseEntity.ok(hotelList);
     }
 
 

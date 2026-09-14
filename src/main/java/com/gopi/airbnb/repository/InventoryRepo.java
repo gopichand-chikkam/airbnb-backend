@@ -10,4 +10,6 @@ public interface InventoryRepo extends JpaRepository<Inventory,Long> {
     List<Inventory> findByRoomId(Long roomId);
 
     List<Inventory> findByRoomIdAndDateGreaterThanEqualOrderByDateAsc(Long id, LocalDate now);
+
+    List<Inventory> findByRoomIdAndDateBetween(Long id, LocalDate checkIn, LocalDate checkOut);
 }

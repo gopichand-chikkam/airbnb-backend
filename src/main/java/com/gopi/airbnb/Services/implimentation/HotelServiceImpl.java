@@ -4,26 +4,37 @@ import com.gopi.airbnb.Services.ContactInfoService;
 import com.gopi.airbnb.Services.HotelService;
 import com.gopi.airbnb.Services.RoomService;
 import com.gopi.airbnb.dto.requests.HotelCreationRequest;
+import com.gopi.airbnb.dto.requests.HotelSearchRequest;
 import com.gopi.airbnb.dto.requests.HotelUpdateRequest;
 import com.gopi.airbnb.dto.response.HotelCreationResponse;
 import com.gopi.airbnb.dto.response.HotelGetResponse;
 import com.gopi.airbnb.entitys.ContactInfo;
 import com.gopi.airbnb.entitys.Hotel;
+import com.gopi.airbnb.entitys.Inventory;
+import com.gopi.airbnb.entitys.Room;
 import com.gopi.airbnb.exceptions.ResourceAlreadyExistsException;
 import com.gopi.airbnb.exceptions.ResourceNotFoundException;
 import com.gopi.airbnb.repository.HotelRepo;
+import com.gopi.airbnb.repository.InventoryRepo;
+import com.gopi.airbnb.repository.RoomRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.swing.text.DateFormatter;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class HotelServiceImpl implements HotelService {
     private final ContactInfoService contactInfoService;
     private final HotelRepo hotelRepo;
-  //  private final RoomService roomService;
+    private final RoomRepo roomRepo;
+    private final InventoryRepo inventoryRepo;
 
 
     @Override
@@ -38,8 +49,8 @@ public class HotelServiceImpl implements HotelService {
         ContactInfo hotelcontactInfo = contactInfoService.addContactDetails(request.contactInfo());
 
         Hotel hotel = new Hotel();
-        hotel.setName(request.name());
-        hotel.setCity(request.city());
+        hotel.setName(request.name().toLowerCase());
+        hotel.setCity(request.city().toLowerCase());
         hotel.setAmenities(request.amenities());
         hotel.setPhotos(request.photos());
         hotel.setActive(true);
@@ -78,8 +89,8 @@ public class HotelServiceImpl implements HotelService {
 
         Hotel hotel = new Hotel();
         hotel.setId(hotelSaved.getId());
-        hotel.setName(hotelUpdateRequest.name());
-        hotel.setCity(hotelUpdateRequest.city());
+        hotel.setName(hotelUpdateRequest.name().toLowerCase());
+        hotel.setCity(hotelUpdateRequest.city().toLowerCase());
         hotel.setAmenities(hotelUpdateRequest.amenities());
         hotel.setPhotos(hotelUpdateRequest.photos());
         hotel.setActive(true);
@@ -126,10 +137,42 @@ public class HotelServiceImpl implements HotelService {
     @Transactional(rollbackFor = Exception.class)
     @Override
     public HotelCreationResponse deleteHotel(Long hotelId) {
-      //  roomService.deleteByHotelId(hotelId);
-        Hotel hotel= hotelRepo.findById(hotelId).orElseThrow(()->  new ResourceNotFoundException("Hotel is Not registered"));
+        //  roomService.deleteByHotelId(hotelId);
+        Hotel hotel = hotelRepo.findById(hotelId).orElseThrow(() -> new ResourceNotFoundException("Hotel is Not registered"));
         contactInfoService.deleteById(hotel.getContact_info().getId());
         hotelRepo.deleteById(hotelId);
-        return new HotelCreationResponse(hotelId,"Hotel is Deleted Successfully");
+        return new HotelCreationResponse(hotelId, "Hotel is Deleted Successfully");
+    }
+
+    @Override
+    public List<HotelGetResponse> hotelSearch(HotelSearchRequest hotelSearchRequest) {
+        System.out.println("entered hear");
+        DateTimeFormatter formatter= DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        LocalDate checkIn= LocalDate.parse(hotelSearchRequest.checkIn(),formatter);
+
+        LocalDate checkOut= LocalDate.parse(hotelSearchRequest.checkOut(),formatter);
+        Integer guestCount= hotelSearchRequest.guestCount();
+        List<Hotel> hotelInCityList = hotelRepo.findByCity(hotelSearchRequest.city());
+        List<HotelGetResponse> hotelGetResponseList = new ArrayList<>();
+        for (Hotel hotel : hotelInCityList) {
+            HotelGetResponse hotelGetResponse = new HotelGetResponse(hotel.getId(), hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(), hotel.getContact_info());
+            List<Room> roomList= roomRepo.findByHotelId(hotelGetResponse.id());
+            for(Room room:roomList){
+                List<Inventory>inventoryList= inventoryRepo.findByRoomIdAndDateBetween(room.getId(),checkIn,checkOut);
+                boolean isEmpty=true;
+                for(Inventory inventory: inventoryList){
+                    System.out.println(inventory.getDate());
+                    if(inventory.getTotalCount()-inventory.getBookedCount()<guestCount){
+                        isEmpty=false;
+                    }
+                }
+                if(isEmpty && !inventoryList.isEmpty()){
+                    hotelGetResponseList.add(hotelGetResponse);
+                }
+            }
+
+
+        }
+        return hotelGetResponseList;
     }
 }
