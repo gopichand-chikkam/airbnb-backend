@@ -42,7 +42,8 @@ public class PaymentServiceImpl implements PaymentService {
 
 
     @Override
-    public PaymentResponse initializePayment(PaymentRequest paymentRequest) {
+    public PaymentResponse initializePayment(PaymentRequest paymentRequest) { //Todo have to improve the accountancy
+
         User user = userRepo.findById(paymentRequest.user_id()).orElseThrow(() -> new ResourceNotFoundException("User is not registered"));
         Room room = roomRepo.findById(paymentRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room is not registered"));
         LocalDate checkIn = LocalDate.parse(paymentRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));

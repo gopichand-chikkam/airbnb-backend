@@ -42,12 +42,6 @@ public class UserServiceImpl implements UserService {
         user.setEmail(request.email());
         user.setPassword(hashedPassword);
         User savedUser= userRepo.save(user);
-//        Guest guest= new Guest();
-//        guest.setUser(savedUser);
-//        guest.setName(savedUser.getName());
-//        guest.setGender(Gender.valueOf(request.gender()));
-//        guest.setCreatedAt(LocalDateTime.now());
-//        Guest savedGuest= guestRepo.save(guest);
         return new UserSignUpResponse(savedUser.getId(),"User Registered Successful");
 
     }

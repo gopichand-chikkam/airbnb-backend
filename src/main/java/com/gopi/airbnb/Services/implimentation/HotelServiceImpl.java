@@ -151,7 +151,6 @@ public class HotelServiceImpl implements HotelService {
         LocalDate checkIn= LocalDate.parse(hotelSearchRequest.checkIn(),formatter);
         LocalDate checkOut= LocalDate.parse(hotelSearchRequest.checkOut(),formatter);
 
-        Integer guestCount= hotelSearchRequest.guestCount();
         List<Hotel> hotelInCityList = hotelRepo.findByCity(hotelSearchRequest.city());
         List<HotelGetResponse> hotelGetResponseList = new ArrayList<>();
         for (Hotel hotel : hotelInCityList) {

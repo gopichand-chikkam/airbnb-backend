@@ -27,16 +27,10 @@ public class BookingServiceImpl implements BookingService {
 
 
 
-    @Transactional(rollbackFor = Exception.class, isolation = Isolation.SERIALIZABLE)
     @Override
     public BookingResponse startBooking(BookingRequest bookingRequest) {
-
-        // Hotel hotel= hotelRepo.findById(bookingRequest.hotel_id()).orElseThrow(()->new ResourceNotFoundException("Hotel is not registered"));
-
         LocalDate checkIn = LocalDate.parse(bookingRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         LocalDate checkOut = LocalDate.parse(bookingRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-
-
         List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateBetween(bookingRequest.room_id(), checkIn, checkOut);
         for (Inventory inventory : inventoryList) {
             if (inventory.getTotalCount() - inventory.getBookedCount() < 1) return new BookingResponse(false);
