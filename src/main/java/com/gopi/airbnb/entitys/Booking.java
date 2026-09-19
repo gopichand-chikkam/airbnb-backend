@@ -4,7 +4,9 @@ import com.gopi.airbnb.enums.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Date;
 import java.util.List;
 
@@ -17,12 +19,12 @@ public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    private Date CreatedAt;
-    private Date updatedAt;
+    private LocalTime CreatedAt;
+    private LocalTime updatedAt;
     @Enumerated(EnumType.STRING)
     private BookingStatus bookingStatus;
-    private LocalDateTime checkInDate;
-    private LocalDateTime checkOutDate;
+    private LocalDate checkInDate;
+    private LocalDate checkOutDate;
 
     @ManyToOne
     @JoinColumn(name = "hotel_id")

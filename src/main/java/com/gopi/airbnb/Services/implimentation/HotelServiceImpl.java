@@ -145,12 +145,12 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
-    public List<HotelGetResponse> hotelSearch(HotelSearchRequest hotelSearchRequest) {
-        System.out.println("entered hear");
+    public List<HotelGetResponse> hotelSearch(HotelSearchRequest hotelSearchRequest) {  // Todo : Had bugs in this function
+
         DateTimeFormatter formatter= DateTimeFormatter.ofPattern("dd-MM-yyyy");
         LocalDate checkIn= LocalDate.parse(hotelSearchRequest.checkIn(),formatter);
-
         LocalDate checkOut= LocalDate.parse(hotelSearchRequest.checkOut(),formatter);
+
         Integer guestCount= hotelSearchRequest.guestCount();
         List<Hotel> hotelInCityList = hotelRepo.findByCity(hotelSearchRequest.city());
         List<HotelGetResponse> hotelGetResponseList = new ArrayList<>();
@@ -160,9 +160,10 @@ public class HotelServiceImpl implements HotelService {
             for(Room room:roomList){
                 List<Inventory>inventoryList= inventoryRepo.findByRoomIdAndDateBetween(room.getId(),checkIn,checkOut);
                 boolean isEmpty=true;
+
                 for(Inventory inventory: inventoryList){
                     System.out.println(inventory.getDate());
-                    if(inventory.getTotalCount()-inventory.getBookedCount()<guestCount){
+                    if(inventory.getTotalCount()-inventory.getBookedCount()<1){
                         isEmpty=false;
                     }
                 }
