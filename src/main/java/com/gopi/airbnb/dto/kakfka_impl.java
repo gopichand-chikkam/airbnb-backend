@@ -1,0 +1,74 @@
+package com.AccountService.AccountMicroservice.configuration;
+
+
+import com.AccountService.AccountMicroservice.dto.UserRegisteredEvent;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
+//import org.springframework.kafka.support.serializer.JsonDeserializer;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Configuration
+public class KafkaConsumerConfig {
+
+    @Bean
+    public ConsumerFactory<String, UserRegisteredEvent> consumerFactory(){
+        Map<String,Object>config= new HashMap<>();
+        config.put(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+                "localhost:9092"
+        );
+
+        config.put(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                "account-service-group"
+        );
+
+        config.put(
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+                StringDeserializer.class
+        );
+
+        config.put(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+                JacksonJsonDeserializer.class
+        );
+
+        config.put(
+                JacksonJsonDeserializer.TRUSTED_PACKAGES,
+                "com.AccountService.AccountMicroservice.dto"
+        );
+
+        config.put(
+                JacksonJsonDeserializer.VALUE_DEFAULT_TYPE,
+                "com.AccountService.AccountMicroservice.dto.UserRegisteredEvent"
+        );
+
+        config.put(
+                JacksonJsonDeserializer.USE_TYPE_INFO_HEADERS,
+                false
+        );
+
+        return new DefaultKafkaConsumerFactory<>(config);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String,UserRegisteredEvent> kafkaListenerContainerFactory(
+            ConsumerFactory<String, UserRegisteredEvent> consumerFactory){
+        ConcurrentKafkaListenerContainerFactory<String, UserRegisteredEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+
+        factory.setConsumerFactory(consumerFactory);
+
+        return factory;
+    }
+
+
+}
