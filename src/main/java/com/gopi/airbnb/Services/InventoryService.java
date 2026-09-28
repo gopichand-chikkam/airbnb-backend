@@ -28,4 +28,6 @@ public interface InventoryService {
     void addInventoryByRoom(Integer bookingOpeningDaysCount, Room savedRoom);
 
     void addLatestDateToRoomInventory(Room room,Integer bookingOpeningDaysCount);
+
+    void updateInventoryByRoom(Integer roomTotalCount,Long roomId);
 }

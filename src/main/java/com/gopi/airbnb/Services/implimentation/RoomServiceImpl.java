@@ -9,17 +9,17 @@ import com.gopi.airbnb.dto.response.RoomAddResponse;
 import com.gopi.airbnb.dto.response.RoomFetchResponse;
 import com.gopi.airbnb.entitys.Hotel;
 import com.gopi.airbnb.entitys.Room;
+import com.gopi.airbnb.exceptions.ResourceAlreadyExistsException;
 import com.gopi.airbnb.exceptions.ResourceNotFoundException;
 import com.gopi.airbnb.repository.RoomRepo;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -27,23 +27,27 @@ public class RoomServiceImpl implements RoomService {
     private final RoomRepo roomRepo;
     private final HotelService hotelService;
     private final InventoryService inventoryService;
-    private final Integer bookingOpeningDaysCount=30;
+    private final Integer bookingOpeningDaysCount = 30;
 
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public RoomAddResponse addRoom(RoomAddRequest request) {
         Hotel hotel = hotelService.findByHotelId(request.hotel_id());
-        Room room = new Room();
-        room.setType(request.type());
-        room.setHotel(hotel);
-        room.setAmenities(request.amenities());
-        room.setBasePrice(request.basePrice());
-        room.setUpdatedAt(LocalDateTime.now());
-        room.setCreatedAt(LocalDateTime.now());
-        room.setCapacity(request.capacity());
-        room.setTotalCount(request.totalCount());
-        room.setPhotos(request.photos());
+        boolean alreadySameTypeRoom = roomRepo.findByHotelIdAndType(request.hotel_id(), request.type().toLowerCase()).isPresent();
+        if (alreadySameTypeRoom) throw new ResourceAlreadyExistsException("Already this room type is present");
+        Room room = Room.builder()
+                .type(request.type().toLowerCase())
+                .hotel(hotel)
+                .amenities(request.amenities())
+                .basePrice(request.basePrice())
+                .capacity(request.capacity())
+                .totalCount(request.totalCount())
+                .photos(request.photos())
+                .updatedAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .build();
         Room savedRoom = roomRepo.save(room);
-        inventoryService.addInventoryByRoom(bookingOpeningDaysCount,savedRoom);
+        inventoryService.addInventoryByRoom(bookingOpeningDaysCount, savedRoom);
         return new RoomAddResponse(savedRoom.getId(), "Room is successfully added in Hotel" + hotel.getName());
     }
 
@@ -91,9 +95,11 @@ public class RoomServiceImpl implements RoomService {
         return new RoomAddResponse(roomId, "Room has deleted successfully with id " + roomId);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public RoomAddResponse updateRoom(RoomUpdateRequest roomUpdateRequest) {
         Room savedRoom = roomRepo.findById(roomUpdateRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room not found with id" + roomUpdateRequest.room_id()));
+        boolean isToUpdateInventory = !Objects.equals(savedRoom.getTotalCount(), roomUpdateRequest.totalCount());
         savedRoom.setType(roomUpdateRequest.type());
         savedRoom.setHotel(savedRoom.getHotel());
         savedRoom.setAmenities(roomUpdateRequest.amenities());
@@ -101,12 +107,15 @@ public class RoomServiceImpl implements RoomService {
         savedRoom.setUpdatedAt(LocalDateTime.now());
         savedRoom.setCreatedAt(savedRoom.getCreatedAt());
         savedRoom.setCapacity(roomUpdateRequest.capacity());
-        savedRoom.setTotalCount(roomUpdateRequest.totalCount());
         savedRoom.setPhotos(roomUpdateRequest.photos());
+        savedRoom.setTotalCount(roomUpdateRequest.totalCount());
         Room updatecRoom = roomRepo.save(savedRoom);
+        if (isToUpdateInventory)
+            inventoryService.updateInventoryByRoom(roomUpdateRequest.totalCount(), roomUpdateRequest.room_id());
         return new RoomAddResponse(savedRoom.getId(), "Room is successfully added " + updatecRoom.getId());
     }
 
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public RoomAddResponse updateRoomField(RoomUpdateRequest roomUpdateRequest) {
         Room savedRoom = roomRepo.findById(roomUpdateRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room not found with id" + roomUpdateRequest.room_id()));
@@ -128,6 +137,7 @@ public class RoomServiceImpl implements RoomService {
 
         if (roomUpdateRequest.totalCount() != null) {
             savedRoom.setTotalCount(roomUpdateRequest.totalCount());
+            inventoryService.updateInventoryByRoom(roomUpdateRequest.totalCount(), roomUpdateRequest.room_id());
         }
 
         if (roomUpdateRequest.type() != null) {
@@ -138,8 +148,8 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public void updateLatestDateOfRoomInventory(){
-        List<Room>allRooms= roomRepo.findAll();
+    public void updateLatestDateOfRoomInventory() {
+        List<Room> allRooms = roomRepo.findAll();
         for (Room room : allRooms) {
             inventoryService.addLatestDateToRoomInventory(room, bookingOpeningDaysCount);
         }

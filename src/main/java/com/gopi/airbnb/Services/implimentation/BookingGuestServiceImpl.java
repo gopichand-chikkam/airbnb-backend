@@ -7,7 +7,6 @@ import com.gopi.airbnb.entitys.Guest;
 import com.gopi.airbnb.repository.BookingGuestRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
 
 @Service

@@ -20,6 +20,9 @@ public class BookingController {
 
         BookingResponse bookingResponse= bookingService.startBooking(bookingRequest);
         return ResponseEntity.ok(bookingResponse);
+
+
+
     }
 
 }

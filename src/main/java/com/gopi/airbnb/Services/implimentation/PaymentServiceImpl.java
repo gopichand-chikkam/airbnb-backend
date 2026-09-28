@@ -48,6 +48,7 @@ public class PaymentServiceImpl implements PaymentService {
         Room room = roomRepo.findById(paymentRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room is not registered"));
         LocalDate checkIn = LocalDate.parse(paymentRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         LocalDate checkOut = LocalDate.parse(paymentRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+
         BookingResponse bookingResponse = bookingService.startBooking(
                 new BookingRequest(
                         paymentRequest.hotel_id(),
@@ -61,38 +62,42 @@ public class PaymentServiceImpl implements PaymentService {
             return new PaymentResponse(null, PaymentStatus.FAILED, "room is not Available please select another room");
 
         List<Guest> savedGuests = new ArrayList<>();
+
         for (GuestRequest guestRequest : paymentRequest.guestDetails()) {
-            Guest guest = new Guest();
-            guest.setGender(Gender.valueOf(guestRequest.gender()));
-            guest.setName(guestRequest.name());
-            guest.setCreatedAt(LocalDateTime.now());
-            guest.setUser(user);
+            Guest guest = Guest.builder()
+                    .gender(Gender.valueOf(guestRequest.gender()))
+                    .name(guestRequest.name())
+                    .createdAt(LocalDateTime.now())
+                    .user(user)
+                    .build();
             Guest savedGuest = guestService.addGuest(guest);
             savedGuests.add(savedGuest);
         }
 
         ThirdPartyPaymentResponse paymentResponse = ThirdPartyPayment(new ThirdPartyPaymentRequest(paymentRequest.user_id(), room.getBasePrice()));
-        Payment payment = new Payment();
-        payment.setPaymentStatus(paymentResponse.paymentStatus());
-        payment.setPrice(room.getBasePrice());
-        payment.setTransactionId(paymentResponse.transaction_id());
-        payment.setCreatedAt(LocalDateTime.now());
-        payment.setUpdatedAt(LocalDateTime.now());
+
+        Payment payment = Payment.builder()
+                .price(room.getBasePrice())
+                .paymentStatus(paymentResponse.paymentStatus())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .transactionId(paymentResponse.transaction_id())
+                .build();
         Payment savedPayment = paymentRepo.save(payment);
 
-        Booking booking = new Booking();
-        booking.setRoom(room);
-        booking.setUser(user);
-        booking.setHotel(room.getHotel());
-        booking.setBookingStatus(paymentResponse.paymentStatus() == PaymentStatus.SUCCESS ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED);
-        booking.setCreatedAt(LocalTime.now());
-        booking.setCheckInDate(checkIn);
-        booking.setCheckOutDate(checkOut);
-        booking.setPayment(payment);
+        Booking booking = Booking.builder()
+                .room(room)
+                .user(user)
+                .hotel(room.getHotel())
+                .bookingStatus(paymentResponse.paymentStatus() == PaymentStatus.SUCCESS ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED)
+                .CreatedAt(LocalTime.now())
+                .updatedAt(LocalTime.now())
+                .checkInDate(checkIn)
+                .checkOutDate(checkOut)
+                .payment(payment)
+                .build();
         Booking savedBooking = bookingService.saveBooking(booking);
-
         bookingGuestService.addRelationToBookingGuest(savedBooking, savedGuests);
-
         return new PaymentResponse(savedBooking.getId(), savedPayment.getPaymentStatus(), "Your room has Booked successfully");
 
 

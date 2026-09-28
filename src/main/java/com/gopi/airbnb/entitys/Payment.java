@@ -11,6 +11,8 @@ import java.util.Date;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
@@ -21,7 +23,6 @@ public class Payment {
     private LocalDateTime updatedAt;
     @Enumerated(EnumType.STRING)
     private PaymentStatus paymentStatus;
-
     @OneToOne(mappedBy = "payment")
     private Booking booking;
 

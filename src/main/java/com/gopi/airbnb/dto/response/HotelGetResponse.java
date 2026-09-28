@@ -10,5 +10,6 @@ public record HotelGetResponse(Long id,
                                List<String> photos,
                                List<String> amenities,
                                Boolean active,
+                               Double hotelMinPrice,
                                ContactInfo contactInfo) {
 }

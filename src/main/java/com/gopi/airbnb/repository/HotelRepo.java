@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface HotelRepo extends JpaRepository<Hotel,Long> {
     List<Hotel> findByCity(String city);
+
+    List<Hotel> findByCityAndActiveTrue(String city);
 }

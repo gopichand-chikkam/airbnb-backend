@@ -12,6 +12,7 @@ import com.gopi.airbnb.entitys.ContactInfo;
 import com.gopi.airbnb.entitys.Hotel;
 import com.gopi.airbnb.entitys.Inventory;
 import com.gopi.airbnb.entitys.Room;
+import com.gopi.airbnb.exceptions.InvalidDetailsException;
 import com.gopi.airbnb.exceptions.ResourceAlreadyExistsException;
 import com.gopi.airbnb.exceptions.ResourceNotFoundException;
 import com.gopi.airbnb.repository.HotelRepo;
@@ -25,6 +26,7 @@ import javax.swing.text.DateFormatter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -64,27 +66,23 @@ public class HotelServiceImpl implements HotelService {
 
     @Override
     public Hotel findByHotelId(Long hotelId) {
-        return hotelRepo.findById(hotelId)
-                .orElseThrow(() -> new ResourceNotFoundException("Hotel not found with id: " + hotelId));
+        return hotelRepo.findById(hotelId).orElseThrow(() -> new ResourceNotFoundException("Hotel not found with id: " + hotelId));
     }
 
     @Override
-    public HotelGetResponse getHotelById(Long hotelId) {
+    public HotelGetResponse getHotelById(Long hotelId) {//Todo had to implement Dynamic HotelMinimum for Hotel
         Hotel hotel = hotelRepo.findById(hotelId).orElseThrow(() -> new ResourceNotFoundException("Hotel not found with id: " + hotelId));
-        return new HotelGetResponse(
-                hotelId,
-                hotel.getCity(),
-                hotel.getName(),
-                hotel.getPhotos(),
-                hotel.getAmenities(),
-                hotel.getActive(),
-                hotel.getContact_info());
+        List<Room>roomsList= roomRepo.findByHotelId(hotelId);
+        Double hotelMinimumPrice= Double.MAX_VALUE;
+        for(Room room:roomsList){
+            hotelMinimumPrice=Math.min(hotelMinimumPrice,room.getBasePrice());
+        }
+        return new HotelGetResponse(hotelId, hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(), hotelMinimumPrice,hotel.getContact_info());
     }
 
     @Override
     public HotelCreationResponse updateHotel(HotelUpdateRequest hotelUpdateRequest) {
-        Hotel hotelSaved = hotelRepo.findById(hotelUpdateRequest.hotel_id())
-                .orElseThrow(() -> new ResourceNotFoundException("Hotel not found with id: " + hotelUpdateRequest.hotel_id()));
+        Hotel hotelSaved = hotelRepo.findById(hotelUpdateRequest.hotel_id()).orElseThrow(() -> new ResourceNotFoundException("Hotel not found with id: " + hotelUpdateRequest.hotel_id()));
         ContactInfo hotelcontactInfo = contactInfoService.updateContactInfo(hotelSaved.getContact_info().getId(), hotelUpdateRequest.contactInfo());
 
         Hotel hotel = new Hotel();
@@ -106,8 +104,8 @@ public class HotelServiceImpl implements HotelService {
 
     @Override
     public HotelCreationResponse updateHotelField(HotelUpdateRequest hotelUpdateRequest) {
-        Hotel hotelSaved = hotelRepo.findById(hotelUpdateRequest.hotel_id())
-                .orElseThrow(() -> new ResourceNotFoundException("Hotel not found with id: " + hotelUpdateRequest.hotel_id()));
+        Hotel hotelSaved = hotelRepo.findById(hotelUpdateRequest.hotel_id()).orElseThrow(() ->
+                new ResourceNotFoundException("Hotel not found with id: " + hotelUpdateRequest.hotel_id()));
 
         if (hotelUpdateRequest.contactInfo() != null) {
             ContactInfo hotelcontactInfo = contactInfoService.updateContactInfoField(hotelSaved.getContact_info().getId(), hotelUpdateRequest.contactInfo());
@@ -145,34 +143,56 @@ public class HotelServiceImpl implements HotelService {
     }
 
     @Override
-    public List<HotelGetResponse> hotelSearch(HotelSearchRequest hotelSearchRequest) {  // Todo : Had bugs in this function
+    public List<HotelGetResponse> hotelSearch(HotelSearchRequest hotelSearchRequest) {   //Todo had to implement Dynamic HotelMinimum for Hotel
+        if (hotelSearchRequest.guestCount() <= 0) throw new InvalidDetailsException("Give Valid Guest Details");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+        LocalDate checkIn = LocalDate.parse(hotelSearchRequest.checkIn(), formatter);
+        LocalDate checkOut = LocalDate.parse(hotelSearchRequest.checkOut(), formatter);
+        if (checkIn.isBefore(LocalDate.now())) throw new InvalidDetailsException("CheckOut Date Cannot be PastDate");
+        if (!checkIn.isBefore(checkOut)) throw new InvalidDetailsException("CheckIn and checkOut dates are invalid");
+        List<Hotel> hotelInCityList = hotelRepo.findByCityAndActiveTrue(hotelSearchRequest.city());
+        if (hotelInCityList.isEmpty())
+            throw new ResourceNotFoundException("No Hotel Present in " + hotelSearchRequest.city() + "city");
 
-        DateTimeFormatter formatter= DateTimeFormatter.ofPattern("dd-MM-yyyy");
-        LocalDate checkIn= LocalDate.parse(hotelSearchRequest.checkIn(),formatter);
-        LocalDate checkOut= LocalDate.parse(hotelSearchRequest.checkOut(),formatter);
-
-        List<Hotel> hotelInCityList = hotelRepo.findByCity(hotelSearchRequest.city());
         List<HotelGetResponse> hotelGetResponseList = new ArrayList<>();
+        int guestCount = hotelSearchRequest.guestCount();
+        long requiredDays = ChronoUnit.DAYS.between(checkIn, checkOut);
         for (Hotel hotel : hotelInCityList) {
-            HotelGetResponse hotelGetResponse = new HotelGetResponse(hotel.getId(), hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(), hotel.getContact_info());
-            List<Room> roomList= roomRepo.findByHotelId(hotelGetResponse.id());
-            for(Room room:roomList){
-                List<Inventory>inventoryList= inventoryRepo.findByRoomIdAndDateBetween(room.getId(),checkIn,checkOut);
-                boolean isEmpty=true;
+            Double hotelMinimumPrice=Double.MAX_VALUE;
 
-                for(Inventory inventory: inventoryList){
-                    System.out.println(inventory.getDate());
-                    if(inventory.getTotalCount()-inventory.getBookedCount()<1){
-                        isEmpty=false;
+            List<Room> roomList = roomRepo.findByHotelId(hotel.getId());
+            for (Room room : roomList) {
+
+                int roomsRequired = (int) Math.ceil(guestCount / (double) room.getCapacity());
+                List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateGreaterThanEqualAndDateLessThan(room.getId(), checkIn, checkOut);
+                if (inventoryList.size() != requiredDays) continue;
+
+                boolean isBookingPossibleToThisRoom = true;
+
+                for (Inventory inventory : inventoryList) {
+                    int availableRooms = inventory.getTotalCount() - inventory.getBookedCount();
+                    if (inventory.getClosed()) {
+                        isBookingPossibleToThisRoom = false;
+                        break;
+                    }
+                    if (availableRooms < roomsRequired) {
+                        isBookingPossibleToThisRoom = false;
+                        break;
                     }
                 }
-                if(isEmpty && !inventoryList.isEmpty()){
-                    hotelGetResponseList.add(hotelGetResponse);
-                }
+                if(isBookingPossibleToThisRoom)hotelMinimumPrice= Math.min(room.getBasePrice(),hotelMinimumPrice);
+
             }
+            if(hotelMinimumPrice!=Integer.MAX_VALUE){
+                HotelGetResponse hotelGetResponse = new HotelGetResponse(hotel.getId(), hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(),hotelMinimumPrice, hotel.getContact_info());
+                hotelGetResponseList.add(hotelGetResponse);
+            }
+
 
 
         }
         return hotelGetResponseList;
     }
+
+
 }

@@ -29,6 +29,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public BookingResponse startBooking(BookingRequest bookingRequest) {
+
         LocalDate checkIn = LocalDate.parse(bookingRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         LocalDate checkOut = LocalDate.parse(bookingRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateBetween(bookingRequest.room_id(), checkIn, checkOut);
@@ -36,7 +37,9 @@ public class BookingServiceImpl implements BookingService {
             if (inventory.getTotalCount() - inventory.getBookedCount() < 1) return new BookingResponse(false);
         }
 
+
         return new BookingResponse(true);
+
     }
 
     @Override

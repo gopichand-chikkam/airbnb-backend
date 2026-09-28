@@ -50,6 +50,12 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse,HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    @ExceptionHandler(InvalidDetailsException.class)
+    public ResponseEntity<ErrorResponse>invalidDetailsException(InvalidDetailsException exception){
+        ErrorResponse errorResponse= new ErrorResponse(HttpStatus.BAD_REQUEST.value(), exception.getMessage(),LocalDateTime.now());
+        return new ResponseEntity<>(errorResponse,HttpStatus.BAD_REQUEST);
+    }
+
 
 
 }

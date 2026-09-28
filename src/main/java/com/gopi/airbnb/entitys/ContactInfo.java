@@ -7,6 +7,8 @@ import lombok.*;
 @Getter
 @Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ContactInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)

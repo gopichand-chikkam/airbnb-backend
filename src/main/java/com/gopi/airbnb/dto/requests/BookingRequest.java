@@ -9,5 +9,6 @@ public record BookingRequest(Long hotel_id,
                              Long user_id,
                              Integer total_guest,
                              String check_in,
-                             String check_out) {
+                             String check_out
+) {
 }
