@@ -1,21 +1,26 @@
 package com.gopi.airbnb.Services.implimentation;
 
 import com.gopi.airbnb.Services.BookingService;
+import com.gopi.airbnb.Services.GuestService;
 import com.gopi.airbnb.dto.requests.BookingRequest;
+
 import com.gopi.airbnb.dto.requests.GuestRequest;
 import com.gopi.airbnb.dto.response.BookingResponse;
 import com.gopi.airbnb.entitys.*;
 import com.gopi.airbnb.enums.Gender;
+import com.gopi.airbnb.enums.ReservationStatus;
+import com.gopi.airbnb.exceptions.InvalidDetailsException;
 import com.gopi.airbnb.exceptions.ResourceNotFoundException;
 import com.gopi.airbnb.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -23,23 +28,113 @@ import java.util.List;
 public class BookingServiceImpl implements BookingService {
     private final BookingRepo bookingRepo;
     private final InventoryRepo inventoryRepo;
+    private final UserRepo userRepo;
+    private final RoomRepo roomRepo;
+    private final GuestService guestService;
+    private final ReservationRepo reservationRepo;
 
 
 
 
     @Override
     public BookingResponse startBooking(BookingRequest bookingRequest) {
-
+        System.out.println("STated booking");
         LocalDate checkIn = LocalDate.parse(bookingRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         LocalDate checkOut = LocalDate.parse(bookingRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-        List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateBetween(bookingRequest.room_id(), checkIn, checkOut);
+        if (checkIn.isBefore(LocalDate.now())) throw new InvalidDetailsException("CheckOut Date Cannot be PastDate");
+        if (!checkIn.isBefore(checkOut)) throw new InvalidDetailsException("CheckIn and checkOut dates are invalid");
+
+        List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateGreaterThanEqualAndDateLessThan(bookingRequest.room_id(), checkIn, checkOut);
+
+        int guestCount = bookingRequest.total_guest();
+        long requiredDays = ChronoUnit.DAYS.between(checkIn, checkOut);
+        if (inventoryList.size() != requiredDays) return new BookingResponse(false);
         for (Inventory inventory : inventoryList) {
-            if (inventory.getTotalCount() - inventory.getBookedCount() < 1) return new BookingResponse(false);
+            int roomsRequired = (int) Math.ceil(guestCount / (double) inventory.getRoom().getCapacity());
+            int availableRooms = inventory.getTotalCount() - inventory.getBookedCount();
+            if (inventory.getClosed())return new BookingResponse(false);
+            if (availableRooms < roomsRequired)return new BookingResponse(false);
         }
-
-
         return new BookingResponse(true);
+    }
 
+   public boolean checkAvailabilityAndCreateReservation(BookingRequest bookingRequest){//Todo need to send invetiry to start booking as argument. without call agin
+        LocalDate checkIn = LocalDate.parse(bookingRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        LocalDate checkOut = LocalDate.parse(bookingRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateGreaterThanEqualAndDateLessThanForUpdate(bookingRequest.room_id(), checkIn, checkOut);
+        System.out.println("Stated booking");
+        int guestCount = bookingRequest.total_guest();
+        BookingResponse bookingResponse = startBooking(bookingRequest);
+        if(!bookingResponse.isBookingPossible())return false;
+        for (Inventory inventory : inventoryList) {
+            int roomsRequired = (int) Math.ceil(guestCount / (double) inventory.getRoom().getCapacity());
+            System.out.println(roomsRequired+"--------------------");
+            inventory.setHoldCount(inventory.getHoldCount()+roomsRequired);
+            inventory.setTotalCount(inventory.getTotalCount()-roomsRequired);
+        }
+         return true;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public BookingResponse reserveBooking(BookingReserveRequest bookingReserveRequest) {
+        User user = userRepo.findById(bookingReserveRequest.user_id()).orElseThrow(() -> new ResourceNotFoundException("User is not registered"));
+        Room room = roomRepo.findById(bookingReserveRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room is not registered"));
+        LocalDate checkIn = LocalDate.parse(bookingReserveRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        LocalDate checkOut = LocalDate.parse(bookingReserveRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+
+        boolean reservationDone= checkAvailabilityAndCreateReservation( new BookingRequest(
+                bookingReserveRequest.hotel_id(),
+                bookingReserveRequest.room_id(),
+                bookingReserveRequest.user_id(),
+                bookingReserveRequest.total_guest(),
+                bookingReserveRequest.check_in(),
+                bookingReserveRequest.check_out()));
+
+
+        if (!reservationDone)
+            return new BookingResponse(false);
+        List<Guest> savedGuests = new ArrayList<>();
+        for (GuestRequest guestRequest : bookingReserveRequest.guestDetails()) {
+            Guest guest = Guest.builder()
+                    .gender(Gender.valueOf(guestRequest.gender()))
+                    .name(guestRequest.name())
+                    .createdAt(LocalDateTime.now())
+                    .user(user)
+                    .build();
+            Guest savedGuest = guestService.addGuest(guest);
+            savedGuests.add(savedGuest);
+        }
+        Reservation reservation= Reservation.builder()
+                .check_in(checkIn)
+                .check_out(checkOut)
+                .paymentWindowStarted(LocalDateTime.now())
+                .paymentWindowExpires(LocalDateTime.now().plusMinutes(1))
+                .reservationStatus(ReservationStatus.ACTIVE)
+                .totalGuest(bookingReserveRequest.total_guest())
+                .user(user)
+                .room(room)
+                .build();
+        Reservation savedReservation= reservationRepo.save(reservation);
+        return new BookingResponse(true);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void updateReservationAndInventory(){
+           List<Reservation> expiredReservationList=reservationRepo.findByPaymentWindowExpiresBefore(LocalDateTime.now());
+           for(Reservation reservation: expiredReservationList) {
+               if (reservation.getReservationStatus() == ReservationStatus.ACTIVE) {
+                   reservation.setReservationStatus(ReservationStatus.EXPIRED);
+                   List<Inventory> expireInventory = inventoryRepo.findByRoomIdAndDateGreaterThanEqualAndDateLessThan(reservation.getRoom().getId(), reservation.getCheck_in(), reservation.getCheck_out());
+                   for (Inventory inventory : expireInventory) {
+                       int roomsRequired = (int) Math.ceil(reservation.getTotalGuest() / (double) inventory.getRoom().getCapacity());
+                       inventory.setTotalCount(inventory.getTotalCount() + roomsRequired);
+                       inventory.setHoldCount(inventory.getHoldCount() - roomsRequired);
+                       inventoryRepo.save(inventory);
+                   }
+                   reservationRepo.save(reservation);
+               }
+           }
     }
 
     @Override

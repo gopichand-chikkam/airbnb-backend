@@ -42,5 +42,6 @@ public class Room {
     private List<Inventory> roomInventory;
     @OneToMany(mappedBy = "room")
     private List<Booking> bookings;
-
+    @OneToMany(mappedBy = "room")
+    private List<Reservation> reservations;
 }

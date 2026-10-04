@@ -22,21 +22,19 @@ public class Inventory {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-
     @Column(nullable = false)
     private LocalDate date;
     @Column(nullable = false)
     private Integer bookedCount;
     @Column(nullable = false)
     private Integer totalCount;
+    private Integer holdCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Double surgeFactor;
     @Column(nullable = false)
     private Boolean closed;
-
     @ManyToOne(fetch = FetchType.LAZY,optional = false)
     @JoinColumn(name = "room_id",nullable = false)
     private Room room;
-
 }
