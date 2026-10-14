@@ -24,7 +24,8 @@ public class Guest {
 
     @OneToMany(mappedBy = "guest")
     private List<BookingGuest>bookingGuestList;
-
+    @OneToMany(mappedBy = "guest")
+    private List<ReservationGuest> reservationGuests;
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;

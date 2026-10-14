@@ -9,18 +9,20 @@ import com.gopi.airbnb.dto.requests.GuestRequest;
 import com.gopi.airbnb.dto.requests.PaymentRequest;
 import com.gopi.airbnb.dto.requests.ThirdPartyPaymentRequest;
 import com.gopi.airbnb.dto.response.PaymentResponse;
+
 import com.gopi.airbnb.dto.response.ThirdPartyPaymentResponse;
+import com.gopi.airbnb.dto.response.ThirdPartyResponse;
 import com.gopi.airbnb.entitys.*;
 import com.gopi.airbnb.enums.BookingStatus;
 import com.gopi.airbnb.enums.Gender;
 import com.gopi.airbnb.enums.PaymentStatus;
+import com.gopi.airbnb.enums.ReservationStatus;
+import com.gopi.airbnb.exceptions.InvalidDetailsException;
 import com.gopi.airbnb.exceptions.ResourceNotFoundException;
-import com.gopi.airbnb.repository.PaymentRepo;
-import com.gopi.airbnb.repository.ReservationRepo;
-import com.gopi.airbnb.repository.RoomRepo;
-import com.gopi.airbnb.repository.UserRepo;
+import com.gopi.airbnb.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,90 +35,138 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
-    private final BookingService bookingService;
-    private final GuestService guestService;
-    private final UserRepo userRepo;
-    private final RoomRepo roomRepo;
+    private final ReservationRepo reservationRepo;
+    private final InventoryRepo inventoryRepo;
     private final PaymentRepo paymentRepo;
-    private final BookingGuestService bookingGuestService;
-    private  final ReservationRepo reservationRepo;
-    @Override
-    public PaymentResponse initializePayment(PaymentRequest paymentRequest) {//Todo have to improve the accountancy
+    private final ReservationGuestRepo reservationGuestRepo;
+    private final BookingGuestRepo bookingGuestRepo;
+    private final BookingService bookingService;
 
 
-        User user = userRepo.findById(paymentRequest.user_id()).orElseThrow(() -> new ResourceNotFoundException("User is not registered"));
-        Room room = roomRepo.findById(paymentRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room is not registered"));
+    @Transactional(rollbackFor = Exception.class)
+// not require for this function but this function is depend on update reservation . so that why i have written
+    public boolean handlingPaymentResponse(ThirdPartyResponse thirdPartyResponse) {
+        if (thirdPartyResponse == null) throw new InvalidDetailsException("thirdPartyResponse is null");
+        PaymentStatus status = thirdPartyResponse.paymentStatus();
+        Reservation reservation = reservationRepo.findById(thirdPartyResponse.reservationId()).orElseThrow(() -> new ResourceNotFoundException("Reservation Not Found"));
+        if (status == PaymentStatus.SUCCESS) {
+            if (reservation.getReservationStatus() == ReservationStatus.ACTIVE) {
+                updateReservationAndInventoryByReservationStatus(reservation, false);
+                reservation.setReservationStatus(ReservationStatus.EXPIRED);
+                Payment successPayment = Payment.builder()
+                        .paymentStatus(PaymentStatus.SUCCESS)
+                        .providerPaymentId(thirdPartyResponse.transactionId())
+                        .price(reservation.getAmount())
+                        .reservation(reservation)
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build();
 
+                Payment savedPayment = paymentRepo.save(successPayment);
+                Booking successBooking = Booking.builder()
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .bookingStatus(BookingStatus.CONFIRMED)
+                        .checkInDate(reservation.getCheck_in())
+                        .checkOutDate(reservation.getCheck_out())
+                        .hotel(reservation.getRoom().getHotel())
+                        .room(reservation.getRoom())
+                        .user(reservation.getUser())
+                        .reservation(reservation)
+                        .build();
+                List<ReservationGuest> guestList = reservationGuestRepo.findByReservationId(reservation.getId());
 
-        LocalDate checkIn = LocalDate.parse(paymentRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
-        LocalDate checkOut = LocalDate.parse(paymentRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+                for (ReservationGuest reservationGuest : guestList) {
+                    BookingGuest bookingGuest = BookingGuest.builder()
+                            .booking(successBooking)
+                            .guest(reservationGuest.getGuest())
+                            .build();
+                    bookingGuestRepo.save(bookingGuest);
+                }
+                return true;
 
-        boolean reservationDone= bookingService.checkAvailabilityAndCreateReservation( new BookingRequest(
-                paymentRequest.hotel_id(),
-                paymentRequest.room_id(),
-                paymentRequest.user_id(),
-                paymentRequest.total_guest(),
-                paymentRequest.check_in(),
-                paymentRequest.check_out()));
+            } else if (reservation.getReservationStatus() == ReservationStatus.EXPIRED) {
 
-        List<Guest> savedGuests = new ArrayList<>();
-        for (GuestRequest guestRequest : paymentRequest.guestDetails()) {
-            Guest guest = Guest.builder()
-                    .gender(Gender.valueOf(guestRequest.gender()))
-                    .name(guestRequest.name())
+                if (bookingService.startBooking(new BookingRequest(null, reservation.getRoom().getId(), null, reservation.getTotalGuest(), reservation.getCheck_in().toString(), reservation.getCheck_out().toString())).isBookingPossible()) {
+                    updateReservationAndInventoryByReservationStatus(reservation, true);
+                    Payment successPayment = Payment.builder()
+                            .paymentStatus(PaymentStatus.SUCCESS)
+                            .providerPaymentId(thirdPartyResponse.transactionId())
+                            .price(reservation.getAmount())
+                            .reservation(reservation)
+                            .createdAt(LocalDateTime.now())
+                            .updatedAt(LocalDateTime.now())
+                            .build();
+
+                    Payment savedPayment = paymentRepo.save(successPayment);
+                    Booking successBooking = Booking.builder()
+                            .createdAt(LocalDateTime.now())
+                            .updatedAt(LocalDateTime.now())
+                            .bookingStatus(BookingStatus.CONFIRMED)
+                            .checkInDate(reservation.getCheck_in())
+                            .checkOutDate(reservation.getCheck_out())
+                            .hotel(reservation.getRoom().getHotel())
+                            .room(reservation.getRoom())
+                            .user(reservation.getUser())
+                            .reservation(reservation)
+                            .build();
+                    List<ReservationGuest> guestList = reservationGuestRepo.findByReservationId(reservation.getId());
+
+                    for (ReservationGuest reservationGuest : guestList) {
+                        BookingGuest bookingGuest = BookingGuest.builder()
+                                .booking(successBooking)
+                                .guest(reservationGuest.getGuest())
+                                .build();
+                        bookingGuestRepo.save(bookingGuest);
+                    }
+                    return true;
+                } else {
+                    //  Todo  when room not available initiate refund to coustomer
+                }
+
+            }
+
+        } else { // if fail i am creating payment entity to maintain a record
+            Payment successPayment = Payment.builder()
+                    .paymentStatus(PaymentStatus.FAILED)
+                    .providerPaymentId(thirdPartyResponse.transactionId())
+                    .price(reservation.getAmount())
+                    .reservation(reservation)
                     .createdAt(LocalDateTime.now())
-                    .user(user)
+                    .updatedAt(LocalDateTime.now())
                     .build();
-            Guest savedGuest = guestService.addGuest(guest);
-            savedGuests.add(savedGuest);
+
+            Payment savedPayment = paymentRepo.save(successPayment);
+        }
+        return false;
+//
+    }
+
+
+    @Transactional(rollbackFor = Exception.class)
+    public void updateReservationAndInventoryByReservationStatus(Reservation reservation, boolean isReservationExpired) {
+
+        List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateGreaterThanEqualAndDateLessThanForUpdate(reservation.getRoom().getId(), reservation.getCheck_in(), reservation.getCheck_out());
+        int guestCount = reservation.getTotalGuest();
+
+
+        int roomsRequired = (int) Math.ceil(guestCount / (double) reservation.getRoom().getCapacity());
+        System.out.println(roomsRequired + "--------------------");
+
+        for (Inventory inventory : inventoryList) {
+            if (!isReservationExpired) {
+                inventory.setHoldCount(inventory.getHoldCount() - roomsRequired);
+                inventory.setBookedCount(inventory.getBookedCount() + roomsRequired);
+                inventoryRepo.save(inventory);
+            } else {
+                inventory.setHoldCount(inventory.getTotalCount() - roomsRequired);
+                inventory.setTotalCount(inventory.getBookedCount() + roomsRequired);
+                inventoryRepo.save(inventory);
+            }
 
         }
 
-        if (!reservationDone)
-            return new PaymentResponse(null, PaymentStatus.FAILED, "room is not Available please select another room");
-        Reservation reservation= Reservation.builder()
-                .check_in(checkIn)
-                .check_out(checkOut)
-                .paymentWindowStarted(LocalDateTime.now())
-                .paymentWindowExpires(LocalDateTime.now().plusMinutes(5))
-                .user(user)
-                .room(room)
-                .build();
-         Reservation savedReservation= reservationRepo.save(reservation);
-        System.out.println(savedReservation.getCheck_out()+"-->"+savedReservation.getCheck_out()+"-->"+savedReservation.getPaymentWindowStarted()+"-->"+savedReservation.getPaymentWindowExpires());
-
-
-        ThirdPartyPaymentResponse paymentResponse = ThirdPartyPayment(new ThirdPartyPaymentRequest(paymentRequest.user_id(), room.getBasePrice()));
-
-        Payment payment = Payment.builder()
-                .price(room.getBasePrice())
-                .paymentStatus(paymentResponse.paymentStatus())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .transactionId(paymentResponse.transaction_id())
-                .build();
-        Payment savedPayment = paymentRepo.save(payment);
-
-        Booking booking = Booking.builder()
-                .room(room)
-                .user(user)
-                .hotel(room.getHotel())
-                .bookingStatus(paymentResponse.paymentStatus() == PaymentStatus.SUCCESS ? BookingStatus.CONFIRMED : BookingStatus.CANCELLED)
-                .CreatedAt(LocalTime.now())
-                .updatedAt(LocalTime.now())
-                .checkInDate(checkIn)
-                .checkOutDate(checkOut)
-                .payment(payment)
-                .build();
-        Booking savedBooking = bookingService.saveBooking(booking);
-        bookingGuestService.addRelationToBookingGuest(savedBooking, savedGuests);
-        return new PaymentResponse(savedBooking.getId(), savedPayment.getPaymentStatus(), "Your room has Booked successfully");
     }
 
 
-
-
-    public ThirdPartyPaymentResponse ThirdPartyPayment(ThirdPartyPaymentRequest thirdPartyPayementRequest) {
-        return new ThirdPartyPaymentResponse("123456789", PaymentStatus.SUCCESS);
-    }
 }

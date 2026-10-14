@@ -21,7 +21,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
 
 @Service
 @RequiredArgsConstructor
@@ -32,13 +34,13 @@ public class BookingServiceImpl implements BookingService {
     private final RoomRepo roomRepo;
     private final GuestService guestService;
     private final ReservationRepo reservationRepo;
+    private final ReservationGuestRepo reservationGuestRepo;
 
 
 
 
     @Override
     public BookingResponse startBooking(BookingRequest bookingRequest) {
-        System.out.println("STated booking");
         LocalDate checkIn = LocalDate.parse(bookingRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         LocalDate checkOut = LocalDate.parse(bookingRequest.check_out(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         if (checkIn.isBefore(LocalDate.now())) throw new InvalidDetailsException("CheckOut Date Cannot be PastDate");
@@ -91,10 +93,23 @@ public class BookingServiceImpl implements BookingService {
                 bookingReserveRequest.check_in(),
                 bookingReserveRequest.check_out()));
 
-
+           
         if (!reservationDone)
             return new BookingResponse(false);
-        List<Guest> savedGuests = new ArrayList<>();
+
+        Reservation reservation= Reservation.builder()
+                .check_in(checkIn)
+                .check_out(checkOut)
+                .amount(room.getBasePrice())
+                .paymentWindowStarted(LocalDateTime.now())
+                .paymentWindowExpires(LocalDateTime.now().plusMinutes(5))
+                .reservationStatus(ReservationStatus.ACTIVE)
+                .totalGuest(bookingReserveRequest.total_guest())
+                .user(user)
+                .room(room)
+                .build();
+        Reservation savedReservation= reservationRepo.save(reservation);
+                List<Guest> savedGuests = new ArrayList<>();
         for (GuestRequest guestRequest : bookingReserveRequest.guestDetails()) {
             Guest guest = Guest.builder()
                     .gender(Gender.valueOf(guestRequest.gender()))
@@ -105,17 +120,15 @@ public class BookingServiceImpl implements BookingService {
             Guest savedGuest = guestService.addGuest(guest);
             savedGuests.add(savedGuest);
         }
-        Reservation reservation= Reservation.builder()
-                .check_in(checkIn)
-                .check_out(checkOut)
-                .paymentWindowStarted(LocalDateTime.now())
-                .paymentWindowExpires(LocalDateTime.now().plusMinutes(1))
-                .reservationStatus(ReservationStatus.ACTIVE)
-                .totalGuest(bookingReserveRequest.total_guest())
-                .user(user)
-                .room(room)
-                .build();
-        Reservation savedReservation= reservationRepo.save(reservation);
+        for(Guest guest :savedGuests){
+            ReservationGuest reservationGuest= ReservationGuest.builder()
+                    .guest(guest)
+                    .reservation(reservation)
+                    .reservationStatus(ReservationStatus.ACTIVE)
+                    .build();
+            reservationGuestRepo.save(reservationGuest);
+        }
+
         return new BookingResponse(true);
     }
 
@@ -132,7 +145,14 @@ public class BookingServiceImpl implements BookingService {
                        inventory.setHoldCount(inventory.getHoldCount() - roomsRequired);
                        inventoryRepo.save(inventory);
                    }
-                   reservationRepo.save(reservation);
+                  Reservation savedReservation= reservationRepo.save(reservation);
+                   List<ReservationGuest> reservationGuestList= reservationGuestRepo.findByReservationId(savedReservation.getId());
+                   for(ReservationGuest reservationGuest: reservationGuestList){
+                       reservationGuest.setReservationStatus(ReservationStatus.EXPIRED);
+                       reservationGuestRepo.save(reservationGuest);
+                   }
+
+
                }
            }
     }

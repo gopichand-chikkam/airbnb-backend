@@ -21,8 +21,8 @@ public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    private LocalTime CreatedAt;
-    private LocalTime updatedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     @Enumerated(EnumType.STRING)
     private BookingStatus bookingStatus;
     private LocalDate checkInDate;
@@ -44,8 +44,8 @@ public class Booking {
     private User user;
 
     @OneToOne
-    @JoinColumn(name = "payment_id")
-    private Payment payment;
+    @JoinColumn(name = "reservation_id")
+    private Reservation reservation;
 
 
 }

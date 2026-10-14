@@ -2,8 +2,11 @@ package com.gopi.airbnb.entitys;
 import com.gopi.airbnb.enums.ReservationStatus;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Getter
@@ -17,6 +20,7 @@ public class Reservation {
    private Long id;
     private LocalDate check_in;
     private LocalDate check_out;
+   private Double amount;
    private LocalDateTime paymentWindowStarted;
    private LocalDateTime paymentWindowExpires;
    private Integer totalGuest;
@@ -28,4 +32,11 @@ public class Reservation {
    @ManyToOne
    @JoinColumn(name = "room_id")
    private Room room;
+   @OneToMany(mappedBy = "reservation")
+   List<Payment> payments;
+   @OneToOne(mappedBy = "reservation")
+   private Booking booking;
+
+   @OneToMany(mappedBy = "reservation")
+   private List<ReservationGuest> reservationGuests;
 }

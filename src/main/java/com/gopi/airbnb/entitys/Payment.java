@@ -4,6 +4,7 @@ import com.gopi.airbnb.enums.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Date;
 
@@ -17,13 +18,14 @@ public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    private String transactionId;
+    private String providerPaymentId;
     private Double price;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
     @Enumerated(EnumType.STRING)
     private PaymentStatus paymentStatus;
-    @OneToOne(mappedBy = "payment")
-    private Booking booking;
+    @ManyToOne
+    @JoinColumn(name = "reservation_id")
+    private Reservation reservation;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 
 }
