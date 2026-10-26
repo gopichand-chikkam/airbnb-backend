@@ -19,7 +19,7 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
     private String providerPaymentId;
-    private Double price;
+    private BigDecimal price;
     @Enumerated(EnumType.STRING)
     private PaymentStatus paymentStatus;
     @ManyToOne

@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.swing.text.DateFormatter;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -72,12 +73,12 @@ public class HotelServiceImpl implements HotelService {
     @Override
     public HotelGetResponse getHotelById(Long hotelId) {//Todo had to implement Dynamic HotelMinimum for Hotel
         Hotel hotel = hotelRepo.findById(hotelId).orElseThrow(() -> new ResourceNotFoundException("Hotel not found with id: " + hotelId));
-        List<Room>roomsList= roomRepo.findByHotelId(hotelId);
-        Double hotelMinimumPrice= Double.MAX_VALUE;
-        for(Room room:roomsList){
-            hotelMinimumPrice=Math.min(hotelMinimumPrice,room.getBasePrice());
+        List<Room> roomsList = roomRepo.findByHotelId(hotelId);
+        Double hotelMinimumPrice = Double.MAX_VALUE;
+        for (Room room : roomsList) {
+            hotelMinimumPrice = Math.min(hotelMinimumPrice, room.getBasePrice().doubleValue());
         }
-        return new HotelGetResponse(hotelId, hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(), hotelMinimumPrice,hotel.getContact_info());
+        return new HotelGetResponse(hotelId, hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(), hotelMinimumPrice, hotel.getContact_info());
     }
 
     @Override
@@ -150,7 +151,9 @@ public class HotelServiceImpl implements HotelService {
         LocalDate checkOut = LocalDate.parse(hotelSearchRequest.checkOut(), formatter);
         if (checkIn.isBefore(LocalDate.now())) throw new InvalidDetailsException("CheckOut Date Cannot be PastDate");
         if (!checkIn.isBefore(checkOut)) throw new InvalidDetailsException("CheckIn and checkOut dates are invalid");
-        List<Hotel> hotelInCityList = hotelRepo.findByCityAndActiveTrue(hotelSearchRequest.city());
+        List<Hotel> hotelInCityList = hotelRepo.findByCityAndActiveTrue(hotelSearchRequest.city().toLowerCase());
+        System.out.println(hotelInCityList);
+        System.out.println("-------------------------------");
         if (hotelInCityList.isEmpty())
             throw new ResourceNotFoundException("No Hotel Present in " + hotelSearchRequest.city() + "city");
 
@@ -158,7 +161,7 @@ public class HotelServiceImpl implements HotelService {
         int guestCount = hotelSearchRequest.guestCount();
         long requiredDays = ChronoUnit.DAYS.between(checkIn, checkOut);
         for (Hotel hotel : hotelInCityList) {
-            Double hotelMinimumPrice=Double.MAX_VALUE;
+            Double hotelMinimumPrice = Double.MAX_VALUE;
 
             List<Room> roomList = roomRepo.findByHotelId(hotel.getId());
             for (Room room : roomList) {
@@ -180,14 +183,14 @@ public class HotelServiceImpl implements HotelService {
                         break;
                     }
                 }
-                if(isBookingPossibleToThisRoom)hotelMinimumPrice= Math.min(room.getBasePrice(),hotelMinimumPrice);
+                if (isBookingPossibleToThisRoom)
+                    hotelMinimumPrice = Math.min(room.getBasePrice().doubleValue(), hotelMinimumPrice);
 
             }
-            if(hotelMinimumPrice!=Integer.MAX_VALUE){
-                HotelGetResponse hotelGetResponse = new HotelGetResponse(hotel.getId(), hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(),hotelMinimumPrice, hotel.getContact_info());
+            if (hotelMinimumPrice != Integer.MAX_VALUE) {
+                HotelGetResponse hotelGetResponse = new HotelGetResponse(hotel.getId(), hotel.getCity(), hotel.getName(), hotel.getPhotos(), hotel.getAmenities(), hotel.getActive(), hotelMinimumPrice, hotel.getContact_info());
                 hotelGetResponseList.add(hotelGetResponse);
             }
-
 
 
         }

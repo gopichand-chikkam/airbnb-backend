@@ -4,5 +4,5 @@ import com.gopi.airbnb.enums.PaymentStatus;
 
 import java.math.BigDecimal;
 
-public record ThirdPartyResponse(PaymentStatus paymentStatus, String transactionId, Long reservationId, BigDecimal amount) {
+public record ThirdPartyResponse(PaymentStatus paymentStatus, String transactionId, Long merchantOrderId, BigDecimal amount,String url) {
 }

@@ -4,6 +4,7 @@ package com.gopi.airbnb.entitys;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
@@ -24,7 +25,7 @@ public class Room {
     @Column(nullable = false)
     private String type;
     @Column(nullable = false)
-    private Double basePrice;
+    private BigDecimal basePrice;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     @ElementCollection

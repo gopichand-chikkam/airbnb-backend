@@ -6,6 +6,7 @@ import com.gopi.airbnb.dto.requests.BookingRequest;
 
 import com.gopi.airbnb.dto.requests.GuestRequest;
 import com.gopi.airbnb.dto.response.BookingResponse;
+import com.gopi.airbnb.dto.response.ReserveBookingResponse;
 import com.gopi.airbnb.entitys.*;
 import com.gopi.airbnb.enums.Gender;
 import com.gopi.airbnb.enums.ReservationStatus;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -79,7 +81,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Transactional(rollbackFor = Exception.class)
     @Override
-    public BookingResponse reserveBooking(BookingReserveRequest bookingReserveRequest) {
+    public ReserveBookingResponse reserveBooking(BookingReserveRequest bookingReserveRequest) {
         User user = userRepo.findById(bookingReserveRequest.user_id()).orElseThrow(() -> new ResourceNotFoundException("User is not registered"));
         Room room = roomRepo.findById(bookingReserveRequest.room_id()).orElseThrow(() -> new ResourceNotFoundException("Room is not registered"));
         LocalDate checkIn = LocalDate.parse(bookingReserveRequest.check_in(), DateTimeFormatter.ofPattern("dd-MM-yyyy"));
@@ -92,17 +94,16 @@ public class BookingServiceImpl implements BookingService {
                 bookingReserveRequest.total_guest(),
                 bookingReserveRequest.check_in(),
                 bookingReserveRequest.check_out()));
-
-           
         if (!reservationDone)
-            return new BookingResponse(false);
-
+            return new ReserveBookingResponse(false,null);
+        long requiredDays = ChronoUnit.DAYS.between(checkIn, checkOut);
+        int roomsRequired = (int) Math.ceil(bookingReserveRequest.total_guest() / (double) room.getCapacity());
         Reservation reservation= Reservation.builder()
                 .check_in(checkIn)
                 .check_out(checkOut)
-                .amount(room.getBasePrice())
+                .amount(room.getBasePrice().multiply(BigDecimal.valueOf(roomsRequired).multiply(BigDecimal.valueOf(requiredDays))))
                 .paymentWindowStarted(LocalDateTime.now())
-                .paymentWindowExpires(LocalDateTime.now().plusMinutes(5))
+                .paymentWindowExpires(LocalDateTime.now().plusMinutes(1))
                 .reservationStatus(ReservationStatus.ACTIVE)
                 .totalGuest(bookingReserveRequest.total_guest())
                 .user(user)
@@ -129,7 +130,7 @@ public class BookingServiceImpl implements BookingService {
             reservationGuestRepo.save(reservationGuest);
         }
 
-        return new BookingResponse(true);
+        return new ReserveBookingResponse(true,reservation.getId());
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -157,6 +158,27 @@ public class BookingServiceImpl implements BookingService {
            }
     }
 
+
+    @Transactional(rollbackFor = Exception.class)
+    public void updateReservationAndInventoryByReservationStatus(Reservation reservation, boolean isReservationExpired) {
+
+        List<Inventory> inventoryList = inventoryRepo.findByRoomIdAndDateGreaterThanEqualAndDateLessThanForUpdate(reservation.getRoom().getId(), reservation.getCheck_in(), reservation.getCheck_out());
+        int guestCount = reservation.getTotalGuest();
+        int roomsRequired = (int) Math.ceil(guestCount / (double) reservation.getRoom().getCapacity());
+        for (Inventory inventory : inventoryList) {
+            if (!isReservationExpired) {
+                inventory.setHoldCount(inventory.getHoldCount() - roomsRequired);
+                inventory.setBookedCount(inventory.getBookedCount() + roomsRequired);
+                inventoryRepo.save(inventory);
+            } else {
+                inventory.setHoldCount(inventory.getTotalCount() - roomsRequired);
+                inventory.setTotalCount(inventory.getBookedCount() + roomsRequired);
+                inventoryRepo.save(inventory);
+            }
+
+        }
+
+    }
     @Override
     public Booking saveBooking(Booking booking) {
         return bookingRepo.save(booking);

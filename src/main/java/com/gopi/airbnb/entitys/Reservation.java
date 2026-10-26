@@ -20,7 +20,7 @@ public class Reservation {
    private Long id;
     private LocalDate check_in;
     private LocalDate check_out;
-   private Double amount;
+   private BigDecimal amount;
    private LocalDateTime paymentWindowStarted;
    private LocalDateTime paymentWindowExpires;
    private Integer totalGuest;
@@ -39,4 +39,7 @@ public class Reservation {
 
    @OneToMany(mappedBy = "reservation")
    private List<ReservationGuest> reservationGuests;
+
+   @OneToMany(mappedBy = "reservation")
+   private List<InternalPayment> internalPayments;
 }

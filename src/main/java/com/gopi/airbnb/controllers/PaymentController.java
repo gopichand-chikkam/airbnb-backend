@@ -14,5 +14,11 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+    @PostMapping("/startPayment")
+    ResponseEntity<PaymentResponse> initiatePayment(@RequestBody PaymentRequest paymentRequest) {
+
+        PaymentResponse paymentResponse = paymentService.initiatePayment(paymentRequest);
+        return ResponseEntity.ok(paymentResponse);
+    }
 
 }
