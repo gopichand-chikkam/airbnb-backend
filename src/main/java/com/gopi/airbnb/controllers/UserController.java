@@ -21,6 +21,7 @@ public class UserController {
 
     @PostMapping("/signUp")
     ResponseEntity<UserSignUpResponse> signUp(@Valid @RequestBody UserSignUp request) {
+        System.out.println("Hit signUp controller");
         UserSignUpResponse userSignUpResponse = userService.signUp(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(userSignUpResponse);
     }

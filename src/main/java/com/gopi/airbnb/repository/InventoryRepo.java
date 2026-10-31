@@ -27,4 +27,6 @@ public interface InventoryRepo extends JpaRepository<Inventory,Long> {
       AND i.date < :checkOut
 """)
     List<Inventory> findByRoomIdAndDateGreaterThanEqualAndDateLessThanForUpdate(Long roomId, LocalDate checkIn, LocalDate checkOut);
+
+    Inventory findByRoomIdAndDate(Long id, LocalDate checkIn);
 }
